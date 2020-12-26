@@ -16,7 +16,7 @@ static int sip_uac_transaction_invite_proceeding(struct sip_uac_transaction_t* t
 		// create early dialog
 		dialog = sip_dialog_create();
 		if (!dialog) return -1;
-		if (0 != sip_dialog_init_uac(dialog, reply) || 0 != sip_dialog_add(t->agent, dialog))
+		if (0 != sip_dialog_init_uac(dialog, reply) || 0 != sip_dialog_set_local_target(dialog, t->req) || 0 != sip_dialog_add(t->agent, dialog))
 		{
 			sip_dialog_release(dialog);
 			dialog = NULL;
@@ -99,7 +99,7 @@ static int sip_uac_transaction_invite_accepted(struct sip_uac_transaction_t* t, 
 	{
 		dialog = sip_dialog_create();
 		if (!dialog) return -1;
-		if (0 != sip_dialog_init_uac(dialog, reply) || 0 != sip_dialog_add(t->agent, dialog))
+		if (0 != sip_dialog_init_uac(dialog, reply) || 0 != sip_dialog_set_local_target(dialog, t->req) || 0 != sip_dialog_add(t->agent, dialog))
 		{
 			sip_dialog_release(dialog);
 			dialog = NULL;
@@ -188,11 +188,7 @@ int sip_uac_transaction_invite_input(struct sip_uac_transaction_t* t, const stru
 	int r, status, oldstatus;
 	
 	// stop retry timer A
-	if (NULL != t->timera)
-	{
-		sip_uac_stop_timer(t->agent, t, t->timera);
-		t->timera = NULL;
-	}
+	sip_uac_stop_timer(t->agent, t, &t->timera);
 
 	oldstatus = t->status;
 	status = sip_uac_transaction_inivte_change_state(t, reply);

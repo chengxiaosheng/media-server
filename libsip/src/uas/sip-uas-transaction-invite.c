@@ -65,9 +65,10 @@ int sip_uas_transaction_invite_input(struct sip_uas_transaction_t* t, struct sip
 		// TODO: add timer here, send 100 trying
 		if (!t->dialog->session && SIP_UAS_TRANSACTION_TRYING == t->status)
 		{
+			sip_uas_transaction_timewait(t, TIMER_H);
+
 			// user ignore/discard
 			t->status = SIP_UAS_TRANSACTION_TERMINATED;
-			sip_uas_transaction_timewait(t, TIMER_H);
 		}
 		break;
 
@@ -163,11 +164,12 @@ int sip_uas_transaction_invite_reply(struct sip_uas_transaction_t* t, int code, 
 	if (t->size < 1)
 		return -1;
 
-    // aet early dialog local url tag
+    // set early dialog local url tag/target
     if(sip_message_isinvite(t->reply) && t->dialog && !cstrvalid(&t->dialog->local.uri.tag))
     {
         assert(cstrvalid(&t->reply->to.tag));
         sip_dialog_setlocaltag(t->dialog, &t->reply->to.tag);
+		sip_dialog_set_local_target(t->dialog, t->reply);
         r = sip_dialog_add(t->agent, t->dialog);
         assert(0 == r);
     }
@@ -219,8 +221,8 @@ static void sip_uas_transaction_onretransmission(void* usrptr)
 	t = (struct sip_uas_transaction_t*)usrptr;
 	r = 0;
 	locker_lock(&t->locker);
-	t->timerg = NULL;
-
+	sip_uas_stop_timer(t->agent, t, &t->timerg); // hijack free timer only, don't release transaction
+	
 	if (t->status < SIP_UAS_TRANSACTION_CONFIRMED)
 	{
 		assert(SIP_UAS_TRANSACTION_COMPLETED == t->status || SIP_UAS_TRANSACTION_ACCEPTED == t->status);
